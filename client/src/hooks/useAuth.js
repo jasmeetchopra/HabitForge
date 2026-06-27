@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext.jsx";
+import { AuthContext } from "../../context/AuthContext.jsx";
 
 // Tiny convenience hook so components write `const { user } = useAuth()`
 // instead of importing useContext and the context object everywhere.
