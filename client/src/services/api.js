@@ -1,10 +1,9 @@
 import axios from "axios";
 
-// One configured axios instance used everywhere. Because the backend stores
-// the JWT in an httpOnly cookie, we set withCredentials so the browser sends
-// that cookie with every request automatically.
+// In development Vite proxies /api to localhost:5000.
+// In production we call the Render backend directly.
 const api = axios.create({
-  baseURL: "/api", // Vite proxies /api to the backend in dev
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
 });
 
