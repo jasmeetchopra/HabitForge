@@ -14,13 +14,16 @@ import {
 // Sets the JWT as an httpOnly cookie. httpOnly means JavaScript on the page
 // cannot read it, which protects the token from XSS attacks. The browser
 // sends it automatically on every request.
+
 const sendTokenCookie = (res, userId) => {
   const token = generateToken(userId);
+
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // https only in prod
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+    secure: process.env.NODE_ENV === "production",
+    sameSite:
+      process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 40 * 24 * 60 * 60 * 1000,
   });
 };
 
