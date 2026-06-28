@@ -4,7 +4,7 @@ const api = axios.create({
   baseURL:
     import.meta.env.MODE === "development"
       ? "/api"
-      : "https://habit-forge-lime.vercel.app/",
+      : "https://habitforge-api-l9en.onrender.com/api",
 
   withCredentials: true,
 });
