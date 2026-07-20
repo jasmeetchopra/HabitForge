@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../hooks/useAuth.js";
 
 export default function Register() {
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
@@ -24,6 +25,21 @@ export default function Register() {
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Google sign-up uses the exact same flow as Google login: send the
+  // credential, receive the same JWT cookie, navigate identically.
+  const handleGoogle = async (credentialResponse) => {
+    setError("");
+    setBusy(true);
+    try {
+      await googleLogin(credentialResponse.credential);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Google sign-in failed");
     } finally {
       setBusy(false);
     }
@@ -59,7 +75,24 @@ export default function Register() {
           </button>
         </form>
 
-        <p className="auth-switch">
+        {/* Divider + Google sign-up */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "18px 0" }}>
+          <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>or</span>
+          <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <GoogleLogin
+            onSuccess={handleGoogle}
+            onError={() => setError("Google sign-in was cancelled or failed")}
+            theme="filled_black"
+            shape="pill"
+            text="signup_with"
+            width="320"
+          />
+        </div>
+
+        <p className="auth-switch" style={{ marginTop: 18 }}>
           Already have an account? <Link to="/login">Log in</Link>
         </p>
       </div>

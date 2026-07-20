@@ -10,20 +10,21 @@ import {
   validateNewPassword,
   validateChangePassword,
 } from "../middleware/validators.js";
+import { OAuth2Client } from "google-auth-library";
+
+// Google verifier — the client id is loaded from the environment, never hardcoded.
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Sets the JWT as an httpOnly cookie. httpOnly means JavaScript on the page
 // cannot read it, which protects the token from XSS attacks. The browser
 // sends it automatically on every request.
-
 const sendTokenCookie = (res, userId) => {
   const token = generateToken(userId);
-
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production" ? "none" : "lax",
-    maxAge: 40 * 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === "production", // https only in prod
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   });
 };
 
@@ -32,6 +33,8 @@ const publicUser = (user) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
+  avatar: user.avatar,
+  provider: user.provider,
   createdAt: user.createdAt,
 });
 
@@ -197,4 +200,74 @@ export const changePassword = asyncHandler(async (req, res) => {
   await user.save();
 
   res.json({ message: "Password updated successfully" });
+});
+
+// @desc   Log in or sign up with a Google credential (ID token from the popup).
+//         Produces the EXACT same JWT cookie as normal login.
+// @route  POST /api/auth/google
+// @access Public
+export const googleAuth = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) {
+    res.status(400);
+    throw new Error("Missing Google credential");
+  }
+
+  // Verify the token with Google. Throws if it's invalid, expired, or forged.
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    res.status(401);
+    throw new Error("Invalid Google credential");
+  }
+
+  if (!payload?.email || !payload.email_verified) {
+    res.status(401);
+    throw new Error("Google account email is not verified");
+  }
+
+  const email = payload.email.toLowerCase();
+  const googleId = payload.sub;
+  const name = payload.name || email.split("@")[0];
+  const avatar = payload.picture || "";
+
+  // ACCOUNT LINKING: if a user with this email already exists, link Google to
+  // that account instead of creating a duplicate. Otherwise create a new
+  // Google-based account (no password).
+  let user = await User.findOne({ email });
+
+  if (user) {
+    let changed = false;
+    if (!user.googleId) {
+      user.googleId = googleId;
+      changed = true;
+    }
+    if (!user.avatar && avatar) {
+      user.avatar = avatar;
+      changed = true;
+    }
+    if (changed) {
+      // Password is untouched here, so skip validation (Google-only accounts
+      // legitimately have no password) and avoid re-hashing anything.
+      await user.save({ validateBeforeSave: false });
+    }
+  } else {
+    user = await User.create({
+      name,
+      email,
+      provider: "google",
+      googleId,
+      avatar,
+      // no password — the schema only requires it for local accounts
+    });
+  }
+
+  // Same JWT cookie helper every other login path uses.
+  sendTokenCookie(res, user._id);
+  res.json(publicUser(user));
 });

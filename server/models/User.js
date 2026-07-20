@@ -18,12 +18,36 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      // Password is required only for local accounts. Google users sign in with
+      // Google, so they have no password. (Existing signups default to "local",
+      // so this keeps email/password registration working exactly as before.)
+      required: [
+        function () {
+          return this.provider === "local";
+        },
+        "Password is required",
+      ],
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
     },
 
-    // --- Forgot-password fields (NEW) ---
+    // --- Auth provider fields (NEW: Google support) ---
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // only indexes documents that actually have a googleId
+    },
+    avatar: {
+      type: String,
+      default: "",
+    },
+
+    // --- Forgot-password fields ---
     // We store only the HASHED token, never the raw one. Even if the DB
     // leaks, the stored value can't be used as a reset link.
     resetPasswordToken: { type: String, select: false },
@@ -44,6 +68,8 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  // Google-only accounts have no password; never match against an empty hash.
+  if (!this.password) return false;
   return bcrypt.compare(enteredPassword, this.password);
 };
 

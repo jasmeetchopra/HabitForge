@@ -7,6 +7,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  googleAuth,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -17,7 +18,10 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.get("/me", protect, getMe);
 
-// --- Password management (NEW) ---
+// --- Google sign-in (NEW) ---
+router.post("/google", googleAuth);
+
+// --- Password management ---
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.put("/change-password", protect, changePassword); // authenticated only

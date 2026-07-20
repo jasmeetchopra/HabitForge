@@ -28,6 +28,12 @@ export const AuthProvider = ({ children }) => {
     return u;
   }, []);
 
+  const googleLogin = useCallback(async (credential) => {
+    const u = await authService.google(credential);
+    setUser(u);
+    return u;
+  }, []);
+
   const register = useCallback(async (data) => {
     const u = await authService.register(data);
     setUser(u);
@@ -39,6 +45,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   }, []);
 
-  const value = { user, loading, login, register, logout };
+  const value = { user, loading, login, googleLogin, register, logout };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
